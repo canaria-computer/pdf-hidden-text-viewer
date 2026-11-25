@@ -1,6 +1,8 @@
 [project]
 name = "pdf-hidden-text-viewer"
 version = "0.1.0"
+description = "PDF 内の検索にはヒットするが目に見えないテキストを可視化するツール"
+license = "MIT-0"
 requires-python = ">=3.11"
 dependencies = [
     "nicegui>=2.0",

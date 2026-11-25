@@ -109,3 +109,7 @@ macOS 版は未署名のため、初回は右クリック →「開く」で起�
 - `icon.png` / `icon.svg` はアプリのアイコン素材。`icon.ico` は
   `uv run python -c "from PIL import Image; Image.open('icon.png').save('icon.ico', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])"`
   で再生成できます
+
+## ライセンス
+
+MIT No Attribution (MIT-0)。詳細は [LICENSE](LICENSE) を参照してください。
