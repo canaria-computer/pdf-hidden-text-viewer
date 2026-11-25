@@ -1,0 +1,14 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.spec
+
+# Virtual environments
+.venv
+
+# 実際に配布された目隠し資料 (CI には test_data.pdf のみ使用)
+samples/0[1-9].pdf

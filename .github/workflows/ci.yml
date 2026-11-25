@@ -1,0 +1,173 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ビルド (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+          - os: macos-14
+            platform: macos-arm64
+          - os: macos-13
+            platform: macos-x64
+          - os: ubuntu-latest
+            platform: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: システム依存をインストール (Linux のみ)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgirepository1.0-dev libcairo2-dev pkg-config python3-dev \
+            gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0
+
+      - name: Python 依存を解決
+        run: uv sync
+
+      - name: 検出エンジンのスモークテスト
+        run: >-
+          uv run python -X utf8 -c
+          "from pathlib import Path;
+          from pdfhidden import HiddenTextAnalyzer;
+          a = HiddenTextAnalyzer(Path('samples/test_data.pdf').read_bytes());
+          t = ''.join(s.text for r in a.analyze_document() for s in r.hidden_spans);
+          assert 'flag{6971ea9e-f3f9-4b4c-a5e6-c66b2afa2731}' in t, t[:200];
+          assert 'flag{4d5703eb-5116-46e6-92ee-8036168458c5}' in t, t[:200];
+          print('smoke test OK')"
+
+      - name: macOS 用アイコン (icon.icns) を生成
+        if: runner.os == 'macOS'
+        run: |
+          uv run python -X utf8 - <<'EOF'
+          from PIL import Image
+          import os
+          os.makedirs("icon.iconset", exist_ok=True)
+          img = Image.open("icon.png").convert("RGBA")
+          for s in (16, 32, 64, 128, 256, 512, 1024):
+              img.resize((s, s), Image.LANCZOS).save(f"icon.iconset/icon_{s}x{s}.png")
+              if s <= 512:
+                  img.resize((s * 2, s * 2), Image.LANCZOS).save(
+                      f"icon.iconset/icon_{s}x{s}@2x.png")
+          EOF
+          iconutil -c icon.icns icon.iconset
+
+      - name: PyInstaller でビルド
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sep=":"
+          extra=""
+          collects="--collect-all nicegui --collect-all pymupdf --collect-all webview"
+          case "${{ runner.os }}" in
+            Windows)
+              sep=";"
+              extra="--noconsole --icon icon.ico"
+              collects="$collects --collect-all clr_loader --collect-all pythonnet"
+              ;;
+            macOS)
+              extra="--windowed --icon icon.icns"
+              ;;
+          esac
+          uv run pyinstaller --onefile --name pdf-hidden-text-viewer \
+            --add-data "icon.ico${sep}." $extra $collects \
+            main.py --noconfirm --clean
+
+      - name: 成果物の整理
+        shell: bash
+        run: |
+          set -euxo pipefail
+          out="pdf-hidden-text-viewer-${{ matrix.platform }}"
+          case "${{ runner.os }}" in
+            Windows)
+              mv dist/pdf-hidden-text-viewer.exe "dist/${out}.exe"
+              ;;
+            macOS)
+              ditto -c -k --sekeepParent dist/pdf-hidden-text-viewer.app "dist/${out}.zip"
+              ;;
+            Linux)
+              mv dist/pdf-hidden-text-viewer "dist/${out}"
+              ;;
+          esac
+          echo "artifact=dist/${out}*" >> "$GITHUB_ENV"
+
+      - name: 成果物をアップロード (Actions Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-hidden-text-viewer-${{ matrix.platform }}
+          path: ${{ env.artifact }}
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release へ成果物を追加
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 全プラットフォームの成果物をダウンロード
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: バージョンを取得
+        run: >-
+          echo "VERSION=$(python3 -c
+          'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          >> "$GITHUB_ENV"
+
+      - name: 既存の同バージョン Release を削除 (あれば)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete "v${VERSION}" --yes --cleanup-tag \
+            --repo "${{ github.repository }}" || true
+
+      - name: Release を作成して成果物を添付
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/notes.md <<'EOF'
+          main ブランチへの push / PR マージをトリガーに自動ビルドされた成果物です。
+
+          | ファイル | 内容 |
+          |---|---|
+          | pdf-hidden-text-viewer-windows-x64.exe | Windows 10/11 (WebView2 必要、OS 標準搭載) |
+          | pdf-hidden-text-viewer-macos-arm64.zip | macOS 12+ Apple Silicon |
+          | pdf-hidden-text-viewer-macos-x64.zip | macOS 12+ Intel |
+
+          **Linux 版** (`pdf-hidden-text-viewer-linux-x64`) も添付されています。
+          実行には webkit2gtk-4.1 と GTK3 が必要です
+          (Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0`)。
+
+          - macOS 版は未署名のため、初回起動時に右クリック →「開く」で許可してください
+          - 実行方法: ダブルクリックでデスクトップアプリとして起動。
+            `--browser` を付けるとブラウザモードで起動します
+          - pyproject.toml の version を bump すると次回の push で新規 Release タグ
+            (vX.Y.Z) が作成されます
+          EOF
+          gh release create "v${VERSION}" release-assets/* \
+            --repo "${{ github.repository }}" \
+            --title "pdf-hidden-text-viewer v${VERSION}" \
+            --notes-file /tmp/notes.md

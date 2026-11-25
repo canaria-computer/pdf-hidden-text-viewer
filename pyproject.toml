@@ -1,0 +1,18 @@
+[project]
+name = "pdf-hidden-text-viewer"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "nicegui>=2.0",
+    "pymupdf>=1.24",
+    "pywebview>=6.2.1",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pillow>=13.0.0",
+    "pyinstaller>=6.22.3",
+]
