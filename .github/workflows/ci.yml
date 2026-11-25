@@ -67,7 +67,7 @@ jobs:
                   img.resize((s * 2, s * 2), Image.LANCZOS).save(
                       f"icon.iconset/icon_{s}x{s}@2x.png")
           EOF
-          iconutil -c icon.icns icon.iconset
+          iconutil --convert icns icon.iconset --output icon.icns
 
       - name: PyInstaller でビルド
         shell: bash
