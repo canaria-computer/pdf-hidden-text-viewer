@@ -19,15 +19,13 @@ jobs:
         include:
           - os: windows-latest
             platform: windows-x64
-          - os: macos-14
+          - os: macos-latest
             platform: macos-arm64
-          - os: macos-13
-            platform: macos-x64
           - os: ubuntu-latest
             platform: linux-x64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: astral-sh/setup-uv@v6
         with:
@@ -123,7 +121,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 全プラットフォームの成果物をダウンロード
         uses: actions/download-artifact@v4
@@ -155,7 +153,6 @@ jobs:
           |---|---|
           | pdf-hidden-text-viewer-windows-x64.exe | Windows 10/11 (WebView2 必要、OS 標準搭載) |
           | pdf-hidden-text-viewer-macos-arm64.zip | macOS 12+ Apple Silicon |
-          | pdf-hidden-text-viewer-macos-x64.zip | macOS 12+ Intel |
 
           **Linux 版** (`pdf-hidden-text-viewer-linux-x64`) も添付されています。
           実行には webkit2gtk-4.1 と GTK3 が必要です

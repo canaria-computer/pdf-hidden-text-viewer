@@ -81,8 +81,7 @@ uv run pyinstaller --onefile --noconsole --name pdf-hidden-text-viewer `
 | 成果物 | ランナー |
 |---|---|
 | `pdf-hidden-text-viewer-windows-x64.exe` | windows-latest |
-| `pdf-hidden-text-viewer-macos-arm64.zip` | macos-14 (Apple Silicon) |
-| `pdf-hidden-text-viewer-macos-x64.zip` | macos-13 (Intel) |
+| `pdf-hidden-text-viewer-macos-arm64.zip` | macos-latest (Apple Silicon) |
 | `pdf-hidden-text-viewer-linux-x64` | ubuntu-latest |
 
 ビルド前に `samples/test_data.pdf` でのスモークテスト（flag 検出の自動検証）が
