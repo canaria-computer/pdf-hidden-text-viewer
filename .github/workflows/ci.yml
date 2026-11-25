@@ -74,6 +74,7 @@ jobs:
         run: |
           set -euxo pipefail
           sep=":"
+          mode="--onefile"
           extra=""
           collects="--collect-all nicegui --collect-all pymupdf --collect-all webview"
           case "${{ runner.os }}" in
@@ -83,10 +84,12 @@ jobs:
               collects="$collects --collect-all clr_loader --collect-all pythonnet"
               ;;
             macOS)
+              # onefile + .app は PyInstaller 7 で廃止予定のため onedir を使用
+              mode="--onedir"
               extra="--windowed --icon icon.icns"
               ;;
           esac
-          uv run pyinstaller --onefile --name pdf-hidden-text-viewer \
+          uv run pyinstaller $mode --name pdf-hidden-text-viewer \
             --add-data "icon.ico${sep}." $extra $collects \
             main.py --noconfirm --clean
 
@@ -100,7 +103,7 @@ jobs:
               mv dist/pdf-hidden-text-viewer.exe "dist/${out}.exe"
               ;;
             macOS)
-              ditto -c -k --sekeepParent dist/pdf-hidden-text-viewer.app "dist/${out}.zip"
+              ditto -c -k --keepParent dist/pdf-hidden-text-viewer.app "dist/${out}.zip"
               ;;
             Linux)
               mv dist/pdf-hidden-text-viewer "dist/${out}"
